@@ -17,6 +17,40 @@ namespace Yolov5Net.Scorer
     {
         private readonly T _model;
 
+        private readonly float[] _strides = new float[] { 8, 16, 32 };
+
+        private readonly float[][][] _anchors = new float[][][]
+        {
+            new float[][] { new float[] { 010, 13 }, new float[] { 016, 030 }, new float[] { 033, 023 } },
+            new float[][] { new float[] { 030, 61 }, new float[] { 062, 045 }, new float[] { 059, 119 } },
+            new float[][] { new float[] { 116, 90 }, new float[] { 156, 198 }, new float[] { 373, 326 } }
+        };
+
+        private readonly int[] _shapes = new int[] { 80, 40, 20 };
+
+        /// <summary>
+        /// Outputs value between 0 and 1.
+        /// </summary>
+        private float Sigmoid(float value)
+        {
+            return 1 / (1 + MathF.Exp(-value));
+        }
+
+        /// <summary>
+        /// Converts xywh bbox format to xyxy.
+        /// </summary>
+        private float[] Xywh2xyxy(float[] source)
+        {
+            var result = new float[4];
+
+            result[0] = source[0] - source[2] / 2f;
+            result[1] = source[1] - source[3] / 2f;
+            result[2] = source[0] + source[2] / 2f;
+            result[3] = source[1] + source[3] / 2f;
+
+            return result;
+        }
+
         /// <summary>
         /// Fits input to net format.
         /// </summary>
@@ -74,7 +108,7 @@ namespace Yolov5Net.Scorer
         /// <summary>
         /// Runs inference session.
         /// </summary>
-        private DenseTensor<float> Inference(Image image)
+        private DenseTensor<float>[] Inference(Image image)
         {
             Bitmap resized = null;
 
@@ -92,46 +126,73 @@ namespace Yolov5Net.Scorer
 
             var result = inference.Run(inputs);
 
-            object output = result.First(x => x.Name == "output").Value;
+            DenseTensor<float>[] output = new[]
+            {
+                result.First(x => x.Name == "output1").Value as DenseTensor<float>,
+                result.First(x => x.Name == "output2").Value as DenseTensor<float>,
+                result.First(x => x.Name == "output3").Value as DenseTensor<float>
+            };
 
-            return (DenseTensor<float>)output;
+            return output;
         }
 
         /// <summary>
         /// Parses net output to predictions.
         /// </summary>
-        private List<YoloPrediction> ParseOutput(DenseTensor<float> output, Image image)
+        private List<YoloPrediction> ParseOutput(DenseTensor<float>[] output, Image image)
         {
             var result = new List<YoloPrediction>();
 
             var (xGain, yGain) = (_model.Width / (float)image.Width, _model.Height / (float)image.Height);
 
-            for (int i = 0; i < output.Length / _model.Dimensions; i++) // iterate tensor
+            for (int i = 0; i < output.Length; i++) // iterate outputs
             {
-                if (output[0, i, 4] <= _model.Confidence) continue;
+                int shapes = _shapes[i]; // shapes per output
 
-                for (int j = 5; j < _model.Dimensions; j++) // compute mul conf
+                for (int a = 0; a < _anchors.Length; a++) // iterate anchors
                 {
-                    output[0, i, j] = output[0, i, j] * output[0, i, 4]; // conf = obj_conf * cls_conf
-                }
-
-                for (int k = 5; k < _model.Dimensions; k++)
-                {
-                    if (output[0, i, k] <= _model.MulConfidence) continue;
-
-                    var xMin = (output[0, i, 0] - output[0, i, 2] / 2) / xGain; // top left x
-                    var yMin = (output[0, i, 1] - output[0, i, 3] / 2) / yGain; // top left y
-                    var xMax = (output[0, i, 0] + output[0, i, 2] / 2) / xGain; // bottom right x
-                    var yMax = (output[0, i, 1] + output[0, i, 3] / 2) / yGain; // bottom right y
-
-                    YoloLabel label = _model.Labels[k - 5];
-
-                    var prediction = new YoloPrediction(label, output[0, i, k])
+                    for (int y = 0; y < shapes; y++) // iterate rows
                     {
-                        Rectangle = new RectangleF(xMin, yMin, xMax - xMin, yMax - yMin)
-                    };
+                        for (int x = 0; x < shapes; x++) // iterate columns
+                        {
+                            int start = (shapes * shapes * a + shapes * y + x) * _model.Dimensions;
 
-                    result.Add(prediction);
+                            float[] buffer = output[i].Skip(start).Take(_model.Dimensions).Select(Sigmoid).ToArray();
+
+                            var objectConfidence = buffer[4]; // extract object confidence
+
+                            if (objectConfidence < _model.Confidence) continue; // skip low confidence objects
+
+                            List<float> scores = buffer.Skip(5).Select(x => x * objectConfidence).ToList();
+
+                            float classConfidence = scores.Max(); // find the best label score
+
+                            if (classConfidence <= _model.MulConfidence) continue; // skip if no any satisfied class
+
+                            var rawX = (buffer[0] * 2 - 0.5f + x) * _strides[i]; // bbox x
+                            var rawY = (buffer[1] * 2 - 0.5f + y) * _strides[i]; // bbox y
+
+                            var rawW = MathF.Pow(buffer[2] * 2, 2) * _anchors[i][a][0]; // bbox width
+                            var rawH = MathF.Pow(buffer[3] * 2, 2) * _anchors[i][a][1]; // bbox height
+
+                            float[] xyxy = Xywh2xyxy(new float[] { rawX, rawY, rawW, rawH });
+
+                            var xMin = xyxy[0] / xGain; // bbox top left x
+                            var yMin = xyxy[1] / yGain; // bbox top left y
+
+                            var xMax = xyxy[2] / xGain; // bbox bottom right
+                            var yMax = xyxy[3] / yGain; // bbox bottom right
+
+                            YoloLabel label = _model.Labels[scores.IndexOf(classConfidence)];
+
+                            var prediction = new YoloPrediction(label, classConfidence)
+                            {
+                                Rectangle = new RectangleF(xMin, yMin, xMax - xMin, yMax - yMin)
+                            };
+
+                            result.Add(prediction);
+                        }
+                    }
                 }
             }
 
