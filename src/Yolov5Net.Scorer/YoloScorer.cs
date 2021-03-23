@@ -162,37 +162,35 @@ namespace Yolov5Net.Scorer
                     {
                         for (int x = 0; x < shapes; x++) // iterate columns
                         {
-                            int start = (shapes * shapes * a + shapes * y + x) * _model.Dimensions;
+                            int offset = (shapes * shapes * a + shapes * y + x) * _model.Dimensions;
 
-                            float[] buffer = output[i].Skip(start).Take(_model.Dimensions).Select(Sigmoid).ToArray();
+                            float[] buffer = output[i].Skip(offset).Take(_model.Dimensions).Select(Sigmoid).ToArray();
 
-                            var objectConfidence = buffer[4]; // extract object confidence
+                            var objConfidence = buffer[4]; // extract object confidence
 
-                            if (objectConfidence < _model.Confidence) continue; // skip low confidence objects
+                            if (objConfidence < _model.Confidence) continue; // skip low confidence objects
 
-                            List<float> scores = buffer.Skip(5).Select(x => x * objectConfidence).ToList();
+                            List<float> scores = buffer.Skip(5).Select(x => x * objConfidence).ToList();
 
-                            float classConfidence = scores.Max(); // find the best label score
+                            float mulConfidence = scores.Max(); // find the best label score
 
-                            if (classConfidence <= _model.MulConfidence) continue; // skip if no any satisfied class
+                            if (mulConfidence <= _model.MulConfidence) continue; // skip if no any satisfied class
 
-                            var rawX = (buffer[0] * 2 - 0.5f + x) * _strides[i]; // bbox x
-                            var rawY = (buffer[1] * 2 - 0.5f + y) * _strides[i]; // bbox y
-
+                            var rawX = (buffer[0] * 2 - 0.5f + x) * _strides[i]; // bbox x (center)
+                            var rawY = (buffer[1] * 2 - 0.5f + y) * _strides[i]; // bbox y (center)
                             var rawW = MathF.Pow(buffer[2] * 2, 2) * _anchors[i][a][0]; // bbox width
                             var rawH = MathF.Pow(buffer[3] * 2, 2) * _anchors[i][a][1]; // bbox height
 
                             float[] xyxy = Xywh2xyxy(new float[] { rawX, rawY, rawW, rawH });
 
-                            var xMin = xyxy[0] / xGain; // bbox top left x
-                            var yMin = xyxy[1] / yGain; // bbox top left y
+                            var xMin = xyxy[0] / xGain; // bbox top left corner x
+                            var yMin = xyxy[1] / yGain; // bbox top left corner y
+                            var xMax = xyxy[2] / xGain; // bbox bottom right corner x
+                            var yMax = xyxy[3] / yGain; // bbox bottom right corner y
 
-                            var xMax = xyxy[2] / xGain; // bbox bottom right
-                            var yMax = xyxy[3] / yGain; // bbox bottom right
+                            YoloLabel label = _model.Labels[scores.IndexOf(mulConfidence)];
 
-                            YoloLabel label = _model.Labels[scores.IndexOf(classConfidence)];
-
-                            var prediction = new YoloPrediction(label, classConfidence)
+                            var prediction = new YoloPrediction(label, mulConfidence)
                             {
                                 Rectangle = new RectangleF(xMin, yMin, xMax - xMin, yMax - yMin)
                             };
