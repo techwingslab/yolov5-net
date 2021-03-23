@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.IO;
 using Yolov5Net.Scorer;
 using Yolov5Net.Scorer.Models;
@@ -35,7 +34,7 @@ namespace Yolov5Net.App
                             new SolidBrush(prediction.Label.Color), new PointF(x, y));
                     }
 
-                    image.Save("assets/result.jpg", ImageFormat.Jpeg);
+                    image.Save("assets/result.jpg");
                 }
             }
         }
