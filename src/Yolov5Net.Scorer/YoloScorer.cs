@@ -168,25 +168,28 @@ namespace Yolov5Net.Scorer
 
                             var objConfidence = buffer[4]; // extract object confidence
 
-                            if (objConfidence < _model.Confidence) continue; // skip low confidence objects
+                            if (objConfidence < _model.Confidence) // check predicted object confidence
+                                continue;
 
                             List<float> scores = buffer.Skip(5).Select(x => x * objConfidence).ToList();
 
-                            float mulConfidence = scores.Max(); // find the best label score
+                            float mulConfidence = scores.Max(); // find the best label
 
-                            if (mulConfidence <= _model.MulConfidence) continue; // skip if no any satisfied class
+                            if (mulConfidence <= _model.MulConfidence) // check class obj_conf * cls_conf confidence
+                                continue;
 
-                            var rawX = (buffer[0] * 2 - 0.5f + x) * _strides[i]; // bbox x (center)
-                            var rawY = (buffer[1] * 2 - 0.5f + y) * _strides[i]; // bbox y (center)
-                            var rawW = MathF.Pow(buffer[2] * 2, 2) * _anchors[i][a][0]; // bbox width
-                            var rawH = MathF.Pow(buffer[3] * 2, 2) * _anchors[i][a][1]; // bbox height
+                            var rawX = (buffer[0] * 2 - 0.5f + x) * _strides[i]; // predicted bbox x (center)
+                            var rawY = (buffer[1] * 2 - 0.5f + y) * _strides[i]; // predicted bbox y (center)
+
+                            var rawW = MathF.Pow(buffer[2] * 2, 2) * _anchors[i][a][0]; // predicted bbox width
+                            var rawH = MathF.Pow(buffer[3] * 2, 2) * _anchors[i][a][1]; // predicted bbox height
 
                             float[] xyxy = Xywh2xyxy(new float[] { rawX, rawY, rawW, rawH });
 
-                            var xMin = xyxy[0] / xGain; // bbox top left corner x
-                            var yMin = xyxy[1] / yGain; // bbox top left corner y
-                            var xMax = xyxy[2] / xGain; // bbox bottom right corner x
-                            var yMax = xyxy[3] / yGain; // bbox bottom right corner y
+                            var xMin = xyxy[0] / xGain; // final bbox tlx scaled with ratio (to original size)
+                            var yMin = xyxy[1] / yGain; // final bbox tly scaled with ratio (to original size)
+                            var xMax = xyxy[2] / xGain; // final bbox brx scaled with ratio (to original size)
+                            var yMax = xyxy[3] / yGain; // final bbox bry scaled with ratio (to original size)
 
                             YoloLabel label = _model.Labels[scores.IndexOf(mulConfidence)];
 
