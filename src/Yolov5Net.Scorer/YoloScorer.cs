@@ -18,17 +18,6 @@ namespace Yolov5Net.Scorer
     {
         private readonly T _model;
 
-        private readonly float[] _strides = new float[] { 8, 16, 32 };
-
-        private readonly float[][][] _anchors = new float[][][]
-        {
-            new float[][] { new float[] { 010, 13 }, new float[] { 016, 030 }, new float[] { 033, 023 } },
-            new float[][] { new float[] { 030, 61 }, new float[] { 062, 045 }, new float[] { 059, 119 } },
-            new float[][] { new float[] { 116, 90 }, new float[] { 156, 198 }, new float[] { 373, 326 } }
-        };
-
-        private readonly int[] _shapes = new int[] { 80, 40, 20 };
-
         /// <summary>
         /// Outputs value between 0 and 1.
         /// </summary>
@@ -131,22 +120,63 @@ namespace Yolov5Net.Scorer
                 NamedOnnxValue.CreateFromTensor("images", ExtractPixels(resized ?? image))
             };
 
-            var result = inference.Run(inputs);
+            var result = inference.Run(inputs); // run inference session
 
-            DenseTensor<float>[] output = new[]
+            var output = new List<DenseTensor<float>>();
+
+            foreach (var item in _model.OutputNames) // add outputs for processing
             {
-                result.First(x => x.Name == "output1").Value as DenseTensor<float>,
-                result.First(x => x.Name == "output2").Value as DenseTensor<float>,
-                result.First(x => x.Name == "output3").Value as DenseTensor<float>
+                output.Add(result.First(x => x.Name == item).Value as DenseTensor<float>);
             };
 
-            return output;
+            return output.ToArray();
         }
 
         /// <summary>
-        /// Parses net output to predictions.
+        /// Parses net output (detect) to predictions.
         /// </summary>
-        private List<YoloPrediction> ParseOutput(DenseTensor<float>[] output, Image image)
+        private List<YoloPrediction> ParseDetect(DenseTensor<float> output, Image image)
+        {
+            var result = new List<YoloPrediction>();
+
+            var (xGain, yGain) = (_model.Width / (float)image.Width, _model.Height / (float)image.Height);
+
+            for (int i = 0; i < output.Length / _model.Dimensions; i++) // iterate tensor
+            {
+                if (output[0, i, 4] <= _model.Confidence) continue;
+
+                for (int j = 5; j < _model.Dimensions; j++) // compute mul conf
+                {
+                    output[0, i, j] = output[0, i, j] * output[0, i, 4]; // conf = obj_conf * cls_conf
+                }
+
+                for (int k = 5; k < _model.Dimensions; k++)
+                {
+                    if (output[0, i, k] <= _model.MulConfidence) continue;
+
+                    var xMin = (output[0, i, 0] - output[0, i, 2] / 2) / xGain; // top left x
+                    var yMin = (output[0, i, 1] - output[0, i, 3] / 2) / yGain; // top left y
+                    var xMax = (output[0, i, 0] + output[0, i, 2] / 2) / xGain; // bottom right x
+                    var yMax = (output[0, i, 1] + output[0, i, 3] / 2) / yGain; // bottom right y
+
+                    YoloLabel label = _model.Labels[k - 5];
+
+                    var prediction = new YoloPrediction(label, output[0, i, k])
+                    {
+                        Rectangle = new RectangleF(xMin, yMin, xMax - xMin, yMax - yMin)
+                    };
+
+                    result.Add(prediction);
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Parses net outputs (sigmoid) to predictions.
+        /// </summary>
+        private List<YoloPrediction> ParseSigmoid(DenseTensor<float>[] output, Image image)
         {
             var result = new List<YoloPrediction>();
 
@@ -154,9 +184,9 @@ namespace Yolov5Net.Scorer
 
             for (int i = 0; i < output.Length; i++) // iterate outputs
             {
-                int shapes = _shapes[i]; // shapes per output
+                int shapes = _model.Shapes[i]; // shapes per output
 
-                for (int a = 0; a < _anchors.Length; a++) // iterate anchors
+                for (int a = 0; a < _model.Anchors.Length; a++) // iterate anchors
                 {
                     for (int y = 0; y < shapes; y++) // iterate rows
                     {
@@ -178,11 +208,11 @@ namespace Yolov5Net.Scorer
                             if (mulConfidence <= _model.MulConfidence) // check class obj_conf * cls_conf confidence
                                 continue;
 
-                            var rawX = (buffer[0] * 2 - 0.5f + x) * _strides[i]; // predicted bbox x (center)
-                            var rawY = (buffer[1] * 2 - 0.5f + y) * _strides[i]; // predicted bbox y (center)
+                            var rawX = (buffer[0] * 2 - 0.5f + x) * _model.Strides[i]; // predicted bbox x (center)
+                            var rawY = (buffer[1] * 2 - 0.5f + y) * _model.Strides[i]; // predicted bbox y (center)
 
-                            var rawW = MathF.Pow(buffer[2] * 2, 2) * _anchors[i][a][0]; // predicted bbox width
-                            var rawH = MathF.Pow(buffer[3] * 2, 2) * _anchors[i][a][1]; // predicted bbox height
+                            var rawW = MathF.Pow(buffer[2] * 2, 2) * _model.Anchors[i][a][0]; // predicted bbox width
+                            var rawH = MathF.Pow(buffer[3] * 2, 2) * _model.Anchors[i][a][1]; // predicted bbox height
 
                             float[] xyxy = Xywh2xyxy(new float[] { rawX, rawY, rawW, rawH });
 
@@ -205,6 +235,14 @@ namespace Yolov5Net.Scorer
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Parses net outputs (sigmoid or detect layer) to predictions.
+        /// </summary>
+        private List<YoloPrediction> ParseOutput(DenseTensor<float>[] output, Image image)
+        {
+            return _model.UseDetect ? ParseDetect(output[0], image) : ParseSigmoid(output, image);
         }
 
         /// <summary>

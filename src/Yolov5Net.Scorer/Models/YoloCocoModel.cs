@@ -11,11 +11,26 @@ namespace Yolov5Net.Scorer.Models
 
         public override int Dimensions { get; } = 85;
 
+        public override float[] Strides { get; } = new float[] { 8, 16, 32 };
+
+        public override float[][][] Anchors { get; } = new float[][][]
+        {
+            new float[][] { new float[] { 010, 13 }, new float[] { 016, 030 }, new float[] { 033, 023 } },
+            new float[][] { new float[] { 030, 61 }, new float[] { 062, 045 }, new float[] { 059, 119 } },
+            new float[][] { new float[] { 116, 90 }, new float[] { 156, 198 }, new float[] { 373, 326 } }
+        };
+
+        public override int[] Shapes { get; } = new int[] { 80, 40, 20 };
+
         public override float Confidence { get; } = 0.20f;
         public override float MulConfidence { get; } = 0.25f;
         public override float Overlap { get; } = 0.45f;
 
         public override string Weights { get; } = "assets/weights/yolov5s.onnx";
+
+        public override string[] OutputNames { get; } = new[] { "561" };
+
+        public override bool UseDetect { get; } = true;
 
         public YoloCocoModel()
         {

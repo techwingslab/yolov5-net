@@ -28,10 +28,11 @@ namespace Yolov5Net.App
                 graphics.DrawRectangles(new Pen(prediction.Label.Color, 1),
                     new[] { prediction.Rectangle });
 
-                var (x, y) = (prediction.Rectangle.X - 2, prediction.Rectangle.Y - 21);
+                var (x, y) = (prediction.Rectangle.X - 3, prediction.Rectangle.Y - 23);
 
-                graphics.DrawString($"{prediction.Label.Name} ({score})", new Font("Consolas", 3),
-                    new SolidBrush(prediction.Label.Color), new PointF(x, y));
+                graphics.DrawString($"{prediction.Label.Name} ({score})",
+                    new Font("Consolas", 16, GraphicsUnit.Pixel), new SolidBrush(prediction.Label.Color),
+                    new PointF(x, y));
             }
 
             image.Save("assets/result.jpg");
