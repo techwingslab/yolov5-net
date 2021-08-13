@@ -11,7 +11,7 @@ namespace Yolov5Net.App
     {
         static void Main(string[] args)
         {
-            var scorer = new YoloScorer<YoloCocoModel>();
+            var scorer = new YoloScorer<YoloCocoP5Model>();
 
             using var stream = new FileStream("assets/test.jpg", FileMode.Open);
 
