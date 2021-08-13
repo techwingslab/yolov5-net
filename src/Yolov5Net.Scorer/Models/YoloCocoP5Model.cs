@@ -28,7 +28,7 @@ namespace Yolov5Net.Scorer.Models
 
         public override string Weights { get; } = "assets/weights/yolov5s.onnx";
 
-        public override string[] OutputNames { get; } = new[] { "561" };
+        public override string[] OutputNames { get; } = new[] { "output" };
 
         public override bool UseDetect { get; } = true;
 
