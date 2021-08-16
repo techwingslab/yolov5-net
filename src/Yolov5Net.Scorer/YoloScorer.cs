@@ -14,16 +14,16 @@ namespace Yolov5Net.Scorer
     /// <summary>
     /// Object detector.
     /// </summary>
-    public class YoloScorer<T> where T : YoloModel
+    public class YoloScorer
     {
-        private readonly T _model;
+        private YoloModel _model;
 
         /// <summary>
         /// Outputs value between 0 and 1.
         /// </summary>
         private float Sigmoid(float value)
         {
-            return 1 / (1 + MathF.Exp(-value));
+            return 1 / (1 + (float)Math.Exp(-value));
         }
 
         /// <summary>
@@ -124,7 +124,7 @@ namespace Yolov5Net.Scorer
 
             var output = new List<DenseTensor<float>>();
 
-            foreach (var item in _model.OutputNames) // add outputs for processing
+            foreach (var item in _model.Outputs) // add outputs for processing
             {
                 output.Add(result.First(x => x.Name == item).Value as DenseTensor<float>);
             };
@@ -201,7 +201,7 @@ namespace Yolov5Net.Scorer
                             if (objConfidence < _model.Confidence) // check predicted object confidence
                                 continue;
 
-                            List<float> scores = buffer.Skip(5).Select(x => x * objConfidence).ToList();
+                            List<float> scores = buffer.Skip(5).Select(b => b * objConfidence).ToList();
 
                             float mulConfidence = scores.Max(); // find the best label
 
@@ -211,8 +211,8 @@ namespace Yolov5Net.Scorer
                             var rawX = (buffer[0] * 2 - 0.5f + x) * _model.Strides[i]; // predicted bbox x (center)
                             var rawY = (buffer[1] * 2 - 0.5f + y) * _model.Strides[i]; // predicted bbox y (center)
 
-                            var rawW = MathF.Pow(buffer[2] * 2, 2) * _model.Anchors[i][a][0]; // predicted bbox width
-                            var rawH = MathF.Pow(buffer[3] * 2, 2) * _model.Anchors[i][a][1]; // predicted bbox height
+                            var rawW = (float)Math.Pow(buffer[2] * 2, 2) * _model.Anchors[i][a][0]; // predicted bbox width
+                            var rawH = (float)Math.Pow(buffer[3] * 2, 2) * _model.Anchors[i][a][1]; // predicted bbox height
 
                             float[] xyxy = Xywh2xyxy(new float[] { rawX, rawY, rawW, rawH });
 
@@ -287,9 +287,9 @@ namespace Yolov5Net.Scorer
             return Supress(ParseOutput(Inference(image), image));
         }
 
-        public YoloScorer()
+        public YoloScorer(YoloModel model)
         {
-            _model = Activator.CreateInstance<T>();
+            _model = model;
         }
     }
 }

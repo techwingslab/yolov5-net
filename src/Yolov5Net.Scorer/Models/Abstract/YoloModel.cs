@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.IO;
 
 namespace Yolov5Net.Scorer.Models.Abstract
 {
@@ -7,28 +8,38 @@ namespace Yolov5Net.Scorer.Models.Abstract
     /// </summary>
     public abstract class YoloModel
     {
-        public abstract int Width { get; }
-        public abstract int Height { get; }
-        public abstract int Depth { get; }
+        public abstract int Width { get; set; }
+        public abstract int Height { get; set; }
+        public abstract int Depth { get; set; }
+        public abstract int Dimensions { get; set; }
+        public abstract float[] Strides { get; set; }
+        public abstract float[][][] Anchors { get; set; }
+        public abstract int[] Shapes { get; set; }
+        public abstract float Confidence { get; set; }
+        public abstract float MulConfidence { get; set; }
+        public abstract float Overlap { get; set; }
+        public abstract string[] Outputs { get; set; }
+        public abstract List<YoloLabel> Labels { get; set; }
+        public abstract bool UseDetect { get; set; }
 
-        public abstract int Dimensions { get; }
+        public byte[] Weights { get; set; }
 
-        public abstract float[] Strides { get; }
-        public abstract float[][][] Anchors { get; }
-        public abstract int[] Shapes { get; }
+        public YoloModel(string weights)
+        {
+            Weights = File.ReadAllBytes(weights);
+        }
 
-        public abstract float Confidence { get; }
-        public abstract float MulConfidence { get; }
-        public abstract float Overlap { get; }
+        public YoloModel(Stream weights)
+        {
+            using (var reader = new BinaryReader(weights))
+            {
+                Weights = reader.ReadBytes((int)weights.Length);
+            }
+        }
 
-        public abstract string[] OutputNames { get; }
-
-        public abstract bool UseDetect { get; }
-
-        public abstract string Weights { get; }
-
-        public List<YoloLabel> Labels { get; protected set; }
-
-        public bool Ready { get; set; }
+        public YoloModel(byte[] weights)
+        {
+            Weights = weights;
+        }
     }
 }
