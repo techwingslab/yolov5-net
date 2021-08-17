@@ -2,8 +2,8 @@
 
     <PropertyGroup>
         <Product>Yolov5Net</Product>
-        <AssemblyVersion>1.0.1.0</AssemblyVersion>
-        <FileVersion>1.0.1.0</FileVersion>
+        <AssemblyVersion>1.0.2.0</AssemblyVersion>
+        <FileVersion>1.0.2.0</FileVersion>
         <TargetFramework>netstandard2.0</TargetFramework>
         <PackageId>Yolov5Net</PackageId>
         <Description>YOLOv5 object detection with C#, ML.NET, ONNX.</Description>
@@ -14,7 +14,7 @@
         <NeutralLanguage>en</NeutralLanguage>
         <Copyright>© Mentalstack 2016-2021</Copyright>
         <Authors>Mentalstack</Authors>
-        <Version>1.0.1</Version>
+        <Version>1.0.2</Version>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
