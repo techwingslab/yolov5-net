@@ -7,7 +7,7 @@ YOLOv5 object detection with ML.NET, ONNX
 
 Run this line from Package Manager Console:
 
-```c#
+```
 Install-Package Yolov5Net -Version 1.0.2
 ```
 
@@ -38,7 +38,7 @@ using (var graphics = Graphics.FromImage(image))
 		var (x, y) = (prediction.Rectangle.X - 3, prediction.Rectangle.Y - 23);
 
 		graphics.DrawString($"{prediction.Label.Name} ({score})",
-			new Font("Consolas", 16, GraphicsUnit.Pixel), new SolidBrush(prediction.Label.Color),
+			new Font("Arial", 16, GraphicsUnit.Pixel), new SolidBrush(prediction.Label.Color),
 			new PointF(x, y));
 	}
 
