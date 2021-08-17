@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Linq;
 using Yolov5Net.Scorer.Extensions;
 using Yolov5Net.Scorer.Models.Abstract;
@@ -14,9 +15,9 @@ namespace Yolov5Net.Scorer
     /// <summary>
     /// Object detector.
     /// </summary>
-    public class YoloScorer
+    public class YoloScorer<T> where T : YoloModel
     {
-        private YoloModel _model;
+        private readonly T _model;
 
         /// <summary>
         /// Outputs value between 0 and 1.
@@ -104,7 +105,7 @@ namespace Yolov5Net.Scorer
         /// <summary>
         /// Runs inference session.
         /// </summary>
-        private DenseTensor<float>[] Inference(Image image)
+        private DenseTensor<float>[] Inference(Image image, byte[] weights)
         {
             Bitmap resized = null;
 
@@ -113,7 +114,7 @@ namespace Yolov5Net.Scorer
                 resized = ResizeImage(image); // fit image size to specified input size
             }
 
-            var inference = new InferenceSession(_model.Weights);
+            var inference = new InferenceSession(weights);
 
             var inputs = new List<NamedOnnxValue> // add image as onnx input
             {
@@ -282,14 +283,35 @@ namespace Yolov5Net.Scorer
         /// <summary>
         /// Runs object detection.
         /// </summary>
-        public List<YoloPrediction> Predict(Image image)
+        public List<YoloPrediction> Predict(Image image, string weights)
         {
-            return Supress(ParseOutput(Inference(image), image));
+            return Supress(ParseOutput(Inference(image, File.ReadAllBytes(weights)), image));
         }
 
-        public YoloScorer(YoloModel model)
+        /// <summary>
+        /// Runs object detection.
+        /// </summary>
+        public List<YoloPrediction> Predict(Image image, Stream weights)
         {
-            _model = model;
+            long length = weights.Length;
+
+            using (var reader = new BinaryReader(weights))
+            {
+                return Supress(ParseOutput(Inference(image, reader.ReadBytes((int)length)), image));
+            }
+        }
+
+        /// <summary>
+        /// Runs object detection.
+        /// </summary>
+        public List<YoloPrediction> Predict(Image image, byte[] weights)
+        {
+            return Supress(ParseOutput(Inference(image, weights), image));
+        }
+
+        public YoloScorer()
+        {
+            _model = Activator.CreateInstance<T>();
         }
     }
 }

@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.IO;
 using Yolov5Net.Scorer.Models.Abstract;
 
 namespace Yolov5Net.Scorer.Models
@@ -115,13 +114,9 @@ namespace Yolov5Net.Scorer.Models
 
         public override bool UseDetect { get; set; } = true;
 
-        public YoloCocoP5Model(string weights)
-            : base(weights) { }
+        public YoloCocoP5Model()
+        {
 
-        public YoloCocoP5Model(Stream weights)
-            : base(weights) { }
-
-        public YoloCocoP5Model(byte[] weights)
-            : base(weights) { }
+        }
     }
 }
