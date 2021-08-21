@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using Microsoft.ML.OnnxRuntime;
 using Yolov5Net.Scorer;
 using Yolov5Net.Scorer.Models;
 
@@ -11,15 +12,12 @@ namespace Yolov5Net.App
     {
         static void Main(string[] args)
         {
-            var image = Image.FromFile("Assets/test.jpg");
-
-            byte[] weights = File.ReadAllBytes("Assets/Weights/yolov5s6.onnx");
-
-            using var scorer = new YoloScorer<YoloCocoP6Model>();
-
-            List<YoloPrediction> predictions = scorer.Predict(image, weights);
-
+            using var sessionOptions = new SessionOptions(); // Or, fe: SessionOptions.MakeSessionOptionWithCudaProvider(());
+            using var scorer = new YoloScorer<YoloCocoP6Model>("Assets/Weights/yolov5s6.onnx", sessionOptions);
+            using var image = Image.FromFile("Assets/test.jpg");
             using var graphics = Graphics.FromImage(image);
+            
+            var predictions = scorer.Predict(image);
             
             foreach (var prediction in predictions) // iterate predictions to draw results
             {
