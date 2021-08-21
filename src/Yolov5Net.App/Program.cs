@@ -11,9 +11,9 @@ namespace Yolov5Net.App
     {
         static void Main(string[] args)
         {
-            var image = Image.FromFile("assets/test.jpg");
+            var image = Image.FromFile("Assets/test.jpg");
 
-            byte[] weights = File.ReadAllBytes("assets/weights/yolov5s6.onnx");
+            byte[] weights = File.ReadAllBytes("Assets/Weights/yolov5s6.onnx");
 
             var scorer = new YoloScorer<YoloCocoP6Model>();
 
@@ -35,7 +35,7 @@ namespace Yolov5Net.App
                         new PointF(x, y));
                 }
 
-                image.Save("assets/result.jpg");
+                image.Save("Assets/result.jpg");
             }
         }
     }
