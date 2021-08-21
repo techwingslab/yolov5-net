@@ -294,6 +294,13 @@ namespace Yolov5Net.Scorer
             _sessionOptions = sessionOptions;
             _inferenceSession = new InferenceSession(modelPath, _sessionOptions ?? new SessionOptions());
         }
+        
+        public YoloScorer(byte[] model, SessionOptions sessionOptions = null)
+        {
+            _model = Activator.CreateInstance<T>();
+            _sessionOptions = sessionOptions;
+            _inferenceSession = new InferenceSession(model, _sessionOptions ?? new SessionOptions());
+        }
 
         public void Dispose()
         {
