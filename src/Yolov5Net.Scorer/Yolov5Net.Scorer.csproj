@@ -15,6 +15,7 @@
         <Copyright>© Mentalstack 2016-2021</Copyright>
         <Authors>Mentalstack</Authors>
         <Version>1.0.2</Version>
+        <LangVersion>9</LangVersion>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

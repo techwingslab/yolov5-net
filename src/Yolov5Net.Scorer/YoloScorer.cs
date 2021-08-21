@@ -15,9 +15,11 @@ namespace Yolov5Net.Scorer
     /// <summary>
     /// Object detector.
     /// </summary>
-    public class YoloScorer<T> where T : YoloModel
+    public class YoloScorer<T> : IDisposable where T : YoloModel
     {
         private readonly T _model;
+        private readonly SessionOptions _sessionOptions;
+        private InferenceSession _inferenceSession;
 
         /// <summary>
         /// Outputs value between 0 and 1.
@@ -114,14 +116,14 @@ namespace Yolov5Net.Scorer
                 resized = ResizeImage(image); // fit image size to specified input size
             }
 
-            var inference = new InferenceSession(weights);
+            _inferenceSession ??= new InferenceSession(weights, _sessionOptions ?? new SessionOptions());
 
             var inputs = new List<NamedOnnxValue> // add image as onnx input
             {
                 NamedOnnxValue.CreateFromTensor("images", ExtractPixels(resized ?? image))
             };
 
-            var result = inference.Run(inputs); // run inference session
+            var result = _inferenceSession.Run(inputs); // run inference session
 
             var output = new List<DenseTensor<float>>();
 
@@ -309,9 +311,16 @@ namespace Yolov5Net.Scorer
             return Supress(ParseOutput(Inference(image, weights), image));
         }
 
-        public YoloScorer()
+        public YoloScorer(SessionOptions sessionOptions = null)
         {
             _model = Activator.CreateInstance<T>();
+            _sessionOptions = sessionOptions;
+        }
+
+        public void Dispose()
+        {
+            _inferenceSession?.Dispose();
+            _sessionOptions?.Dispose();
         }
     }
 }
