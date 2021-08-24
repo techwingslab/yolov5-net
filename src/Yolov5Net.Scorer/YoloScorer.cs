@@ -15,9 +15,11 @@ namespace Yolov5Net.Scorer
     /// <summary>
     /// Object detector.
     /// </summary>
-    public class YoloScorer<T> where T : YoloModel
+    public class YoloScorer<T> : IDisposable where T : YoloModel
     {
         private readonly T _model;
+        private readonly SessionOptions _sessionOptions;
+        private readonly InferenceSession _inferenceSession;
 
         /// <summary>
         /// Outputs value between 0 and 1.
@@ -105,7 +107,7 @@ namespace Yolov5Net.Scorer
         /// <summary>
         /// Runs inference session.
         /// </summary>
-        private DenseTensor<float>[] Inference(Image image, byte[] weights)
+        private DenseTensor<float>[] Inference(Image image)
         {
             Bitmap resized = null;
 
@@ -113,15 +115,13 @@ namespace Yolov5Net.Scorer
             {
                 resized = ResizeImage(image); // fit image size to specified input size
             }
-
-            var inference = new InferenceSession(weights);
-
+            
             var inputs = new List<NamedOnnxValue> // add image as onnx input
             {
                 NamedOnnxValue.CreateFromTensor("images", ExtractPixels(resized ?? image))
             };
 
-            var result = inference.Run(inputs); // run inference session
+            var result = _inferenceSession.Run(inputs); // run inference session
 
             var output = new List<DenseTensor<float>>();
 
@@ -283,35 +283,29 @@ namespace Yolov5Net.Scorer
         /// <summary>
         /// Runs object detection.
         /// </summary>
-        public List<YoloPrediction> Predict(Image image, string weights)
+        public List<YoloPrediction> Predict(Image image)
         {
-            return Supress(ParseOutput(Inference(image, File.ReadAllBytes(weights)), image));
+            return Supress(ParseOutput(Inference(image), image));
         }
 
-        /// <summary>
-        /// Runs object detection.
-        /// </summary>
-        public List<YoloPrediction> Predict(Image image, Stream weights)
-        {
-            long length = weights.Length;
-
-            using (var reader = new BinaryReader(weights))
-            {
-                return Supress(ParseOutput(Inference(image, reader.ReadBytes((int)length)), image));
-            }
-        }
-
-        /// <summary>
-        /// Runs object detection.
-        /// </summary>
-        public List<YoloPrediction> Predict(Image image, byte[] weights)
-        {
-            return Supress(ParseOutput(Inference(image, weights), image));
-        }
-
-        public YoloScorer()
+        public YoloScorer(string modelPath, SessionOptions sessionOptions = null)
         {
             _model = Activator.CreateInstance<T>();
+            _sessionOptions = sessionOptions;
+            _inferenceSession = new InferenceSession(modelPath, _sessionOptions ?? new SessionOptions());
+        }
+        
+        public YoloScorer(byte[] model, SessionOptions sessionOptions = null)
+        {
+            _model = Activator.CreateInstance<T>();
+            _sessionOptions = sessionOptions;
+            _inferenceSession = new InferenceSession(model, _sessionOptions ?? new SessionOptions());
+        }
+
+        public void Dispose()
+        {
+            _inferenceSession?.Dispose();
+            _sessionOptions?.Dispose();
         }
     }
 }
