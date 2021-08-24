@@ -13,12 +13,12 @@ using Yolov5Net.Scorer.Models.Abstract;
 namespace Yolov5Net.Scorer
 {
     /// <summary>
-    /// Object detector.
+    /// Yolov5 scorer.
     /// </summary>
     public class YoloScorer<T> : IDisposable where T : YoloModel
     {
         private readonly T _model;
-        private readonly SessionOptions _sessionOptions;
+
         private readonly InferenceSession _inferenceSession;
 
         /// <summary>
@@ -115,7 +115,7 @@ namespace Yolov5Net.Scorer
             {
                 resized = ResizeImage(image); // fit image size to specified input size
             }
-            
+
             var inputs = new List<NamedOnnxValue> // add image as onnx input
             {
                 NamedOnnxValue.CreateFromTensor("images", ExtractPixels(resized ?? image))
@@ -288,24 +288,47 @@ namespace Yolov5Net.Scorer
             return Supress(ParseOutput(Inference(image), image));
         }
 
-        public YoloScorer(string modelPath, SessionOptions sessionOptions = null)
+        /// <summary>
+        /// Creates new instance of YoloScorer.
+        /// </summary>
+        public YoloScorer()
         {
             _model = Activator.CreateInstance<T>();
-            _sessionOptions = sessionOptions;
-            _inferenceSession = new InferenceSession(modelPath, _sessionOptions ?? new SessionOptions());
-        }
-        
-        public YoloScorer(byte[] model, SessionOptions sessionOptions = null)
-        {
-            _model = Activator.CreateInstance<T>();
-            _sessionOptions = sessionOptions;
-            _inferenceSession = new InferenceSession(model, _sessionOptions ?? new SessionOptions());
         }
 
+        /// <summary>
+        /// Creates new instance of YoloScorer with weights path and options.
+        /// </summary>
+        public YoloScorer(string weights, SessionOptions opts = null) : this()
+        {
+            _inferenceSession = new InferenceSession(File.ReadAllBytes(weights), opts ?? new SessionOptions());
+        }
+
+        /// <summary>
+        /// Creates new instance of YoloScorer with weights stream and options.
+        /// </summary>
+        public YoloScorer(Stream weights, SessionOptions opts = null) : this()
+        {
+            using (var reader = new BinaryReader(weights))
+            {
+                _inferenceSession = new InferenceSession(reader.ReadBytes((int)weights.Length), opts ?? new SessionOptions());
+            }
+        }
+
+        /// <summary>
+        /// Creates new instance of YoloScorer with weights bytes and options.
+        /// </summary>
+        public YoloScorer(byte[] weights, SessionOptions opts = null) : this()
+        {
+            _inferenceSession = new InferenceSession(weights, opts ?? new SessionOptions());
+        }
+
+        /// <summary>
+        /// Disposes YoloScorer instance.
+        /// </summary>
         public void Dispose()
         {
-            _inferenceSession?.Dispose();
-            _sessionOptions?.Dispose();
+            _inferenceSession.Dispose();
         }
     }
 }
