@@ -20,7 +20,7 @@ namespace Yolov5Net.Scorer.Models
             new float[][] { new float[] { 116, 90 }, new float[] { 156, 198 }, new float[] { 373, 326 } }
         };
 
-        public override int[] Shapes { get; set; } = new int[] { 20, 40, 80 };
+        public override int[] Shapes { get; set; } = new int[] { 80, 40, 20 };
 
         public override float Confidence { get; set; } = 0.20f;
         public override float MulConfidence { get; set; } = 0.25f;
