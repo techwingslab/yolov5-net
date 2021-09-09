@@ -160,7 +160,7 @@ namespace Yolov5Net.Scorer
 
                 for (int j = 5; j < _model.Dimensions; j++)
                 {
-                    output[0, i, j] = output[0, i, j] * output[0, i, 4]; // mul conf = obj_conf * cls_conf
+                    output[0, i, j] = output[0, i, j] * output[0, i, 4]; // compute mul conf = obj_conf * cls_conf
                 }
 
                 for (int k = 5; k < _model.Dimensions; k++)
@@ -168,10 +168,10 @@ namespace Yolov5Net.Scorer
                     if (output[0, i, k] <= _model.MulConfidence) // skip low confidence
                         continue;
 
-                    var xMin = ((output[0, i, 0] - output[0, i, 2] / 2) - xPad) / gain; // unpad bbox tlx
-                    var yMin = ((output[0, i, 1] - output[0, i, 3] / 2) - yPad) / gain; // unpad bbox tly
-                    var xMax = ((output[0, i, 0] + output[0, i, 2] / 2) - xPad) / gain; // unpad bbox brx
-                    var yMax = ((output[0, i, 1] + output[0, i, 3] / 2) - yPad) / gain; // unpad bbox bry
+                    var xMin = ((output[0, i, 0] - output[0, i, 2] / 2) - xPad) / gain; // unpad bbox tlx to original
+                    var yMin = ((output[0, i, 1] - output[0, i, 3] / 2) - yPad) / gain; // unpad bbox tly to original
+                    var xMax = ((output[0, i, 0] + output[0, i, 2] / 2) - xPad) / gain; // unpad bbox brx to original
+                    var yMax = ((output[0, i, 1] + output[0, i, 3] / 2) - yPad) / gain; // unpad bbox bry to original
 
                     xMin = Clamp(xMin, 0, image.Width);  // clip bbox tlx to boundaries
                     yMin = Clamp(yMin, 0, image.Height); // clip bbox tly to boundaries
@@ -239,10 +239,10 @@ namespace Yolov5Net.Scorer
 
                             float[] xyxy = Xywh2xyxy(new float[] { rawX, rawY, rawW, rawH });
 
-                            var xMin = Clamp((xyxy[0] - xPad) / gain, 0, image.Width);  // unpad and clip bbox tlx
-                            var yMin = Clamp((xyxy[1] - yPad) / gain, 0, image.Height); // unpad and clip bbox tly
-                            var xMax = Clamp((xyxy[2] - xPad) / gain, 0, image.Width);  // unpad and clip bbox brx
-                            var yMax = Clamp((xyxy[3] - yPad) / gain, 0, image.Height); // unpad and clip bbox bry
+                            var xMin = Clamp((xyxy[0] - xPad) / gain, 0, image.Width);  // unpad, clip tlx
+                            var yMin = Clamp((xyxy[1] - yPad) / gain, 0, image.Height); // unpad, clip tly
+                            var xMax = Clamp((xyxy[2] - xPad) / gain, 0, image.Width);  // unpad, clip brx
+                            var yMax = Clamp((xyxy[3] - yPad) / gain, 0, image.Height); // unpad, clip bry
 
                             YoloLabel label = _model.Labels[scores.IndexOf(mulConfidence)];
 
