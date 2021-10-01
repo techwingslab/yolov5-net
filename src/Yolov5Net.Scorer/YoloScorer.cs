@@ -99,9 +99,9 @@ namespace Yolov5Net.Scorer
 
                     for (int x = 0; x < locked.Width; x++)
                     {
-                        tensor[0, 0, y, x] = row[x * 3 + 0] / 255.0F;
+                        tensor[0, 0, y, x] = row[x * 3 + 2] / 255.0F;
                         tensor[0, 1, y, x] = row[x * 3 + 1] / 255.0F;
-                        tensor[0, 2, y, x] = row[x * 3 + 2] / 255.0F;
+                        tensor[0, 2, y, x] = row[x * 3 + 0] / 255.0F;
                     }
                 }
 
