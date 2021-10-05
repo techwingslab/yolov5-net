@@ -75,8 +75,6 @@ namespace Yolov5Net.Scorer
                 graphics.DrawImage(image, new Rectangle(x, y, width, height));
             }
 
-            output.Save("harry.jpg");
-
             return output;
         }
 
