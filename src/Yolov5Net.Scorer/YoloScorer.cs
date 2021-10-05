@@ -157,18 +157,16 @@ namespace Yolov5Net.Scorer
 
             for (int i = 0; i < output.Length / _model.Dimensions; i++) // iterate tensor
             {
-                if (output[0, i, 4] <= _model.Confidence) // skip low confidence
-                    continue;
+                if (output[0, i, 4] <= _model.Confidence) continue; // skip low obj_conf results
 
                 for (int j = 5; j < _model.Dimensions; j++)
                 {
-                    output[0, i, j] = output[0, i, j] * output[0, i, 4]; // compute mul conf = obj_conf * cls_conf
+                    output[0, i, j] = output[0, i, j] * output[0, i, 4]; // compute mul_conf = obj_conf * cls_conf
                 }
 
                 for (int k = 5; k < _model.Dimensions; k++)
                 {
-                    if (output[0, i, k] <= _model.MulConfidence) // skip low confidence
-                        continue;
+                    if (output[0, i, k] <= _model.MulConfidence) continue; // skip low mul_conf results
 
                     var xMin = ((output[0, i, 0] - output[0, i, 2] / 2) - xPad) / gain; // unpad bbox tlx to original
                     var yMin = ((output[0, i, 1] - output[0, i, 3] / 2) - yPad) / gain; // unpad bbox tly to original
@@ -223,15 +221,13 @@ namespace Yolov5Net.Scorer
 
                             var objConfidence = buffer[4]; // extract object confidence
 
-                            if (objConfidence < _model.Confidence) // check predicted object confidence
-                                continue;
+                            if (objConfidence <= _model.Confidence) continue; // skip low obj_conf results
 
                             List<float> scores = buffer.Skip(5).Select(b => b * objConfidence).ToList();
 
                             float mulConfidence = scores.Max(); // find the best label
 
-                            if (mulConfidence <= _model.MulConfidence) // check class obj_conf * cls_conf confidence
-                                continue;
+                            if (mulConfidence <= _model.MulConfidence) continue; // skip low mul_conf results
 
                             var rawX = (buffer[0] * 2 - 0.5f + x) * _model.Strides[i]; // predicted bbox x (center)
                             var rawY = (buffer[1] * 2 - 0.5f + y) * _model.Strides[i]; // predicted bbox y (center)
