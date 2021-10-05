@@ -62,7 +62,7 @@ namespace Yolov5Net.Scorer
 
             using (var graphics = Graphics.FromImage(output))
             {
-                graphics.Clear(Color.FromArgb(0, 0, 0, 0)); // ckear with black
+                graphics.Clear(Color.FromArgb(0, 0, 0, 0)); // clear with black
 
                 var (wRatio, hRatio) = (_model.Width / (float)image.Width, _model.Height / (float)image.Height);
 
@@ -75,6 +75,8 @@ namespace Yolov5Net.Scorer
                 graphics.DrawImage(image, new Rectangle(x, y, width, height));
             }
 
+            output.Save("harry.jpg");
+
             return output;
         }
 
@@ -83,7 +85,9 @@ namespace Yolov5Net.Scorer
         /// </summary>
         private Tensor<float> ExtractPixels(Image image)
         {
-            var bitmap = new Bitmap(image);
+            var bitmap = (Bitmap)image;
+
+            int bytesPerPixel = Image.GetPixelFormatSize(bitmap.PixelFormat) / 8;
 
             var rectangle = new Rectangle(0, 0, image.Width, image.Height);
 
@@ -99,9 +103,9 @@ namespace Yolov5Net.Scorer
 
                     for (int x = 0; x < locked.Width; x++)
                     {
-                        tensor[0, 0, y, x] = row[x * 3 + 2] / 255.0F;
-                        tensor[0, 1, y, x] = row[x * 3 + 1] / 255.0F;
-                        tensor[0, 2, y, x] = row[x * 3 + 0] / 255.0F;
+                        tensor[0, 0, y, x] = row[x * bytesPerPixel + 2] / 255.0F;
+                        tensor[0, 1, y, x] = row[x * bytesPerPixel + 1] / 255.0F;
+                        tensor[0, 2, y, x] = row[x * bytesPerPixel + 0] / 255.0F;
                     }
                 }
 
