@@ -3,6 +3,7 @@ using Microsoft.ML.OnnxRuntime.Tensors;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
@@ -71,6 +72,10 @@ namespace Yolov5Net.Scorer
                 var (width, height) = ((int)(image.Width * ratio), (int)(image.Height * ratio));
 
                 var (x, y) = ((_model.Width / 2) - (width / 2), (_model.Height / 2) - (height / 2));
+
+                graphics.SmoothingMode = SmoothingMode.None; // set no smoothing
+                graphics.InterpolationMode = InterpolationMode.Bilinear; // set bilinear interpolation
+                graphics.PixelOffsetMode = PixelOffsetMode.Half; // set half pixel offset
 
                 graphics.DrawImage(image, new Rectangle(x, y, width, height));
             }
