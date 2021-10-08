@@ -90,21 +90,21 @@ namespace Yolov5Net.Scorer
         {
             var bitmap = (Bitmap)image;
 
+            var rectangle = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
+
+            BitmapData bitmapData = bitmap.LockBits(rectangle, ImageLockMode.ReadOnly, bitmap.PixelFormat);
+
             int bytesPerPixel = Image.GetPixelFormatSize(bitmap.PixelFormat) / 8;
 
-            var rectangle = new Rectangle(0, 0, image.Width, image.Height);
-
-            BitmapData locked = bitmap.LockBits(rectangle, ImageLockMode.ReadOnly, image.PixelFormat);
-
-            var tensor = new DenseTensor<float>(new[] { 1, 3, image.Height, image.Width });
+            var tensor = new DenseTensor<float>(new[] { 1, 3, _model.Height, _model.Width });
 
             unsafe // speed up conversion by direct work with memory
             {
-                for (int y = 0; y < locked.Height; y++)
+                for (int y = 0; y < bitmapData.Height; y++)
                 {
-                    byte* row = (byte*)locked.Scan0 + (y * locked.Stride);
+                    byte* row = (byte*)bitmapData.Scan0 + (y * bitmapData.Stride);
 
-                    for (int x = 0; x < locked.Width; x++)
+                    for (int x = 0; x < bitmapData.Width; x++)
                     {
                         tensor[0, 0, y, x] = row[x * bytesPerPixel + 2] / 255.0F;
                         tensor[0, 1, y, x] = row[x * bytesPerPixel + 1] / 255.0F;
@@ -112,7 +112,7 @@ namespace Yolov5Net.Scorer
                     }
                 }
 
-                bitmap.UnlockBits(locked);
+                bitmap.UnlockBits(bitmapData);
             }
 
             return tensor;
@@ -292,7 +292,7 @@ namespace Yolov5Net.Scorer
                     float unionArea = rect1.Area() + rect2.Area() - intArea;
                     float overlap = intArea / unionArea;
 
-                    if (overlap > _model.Overlap)
+                    if (overlap >= _model.Overlap)
                     {
                         if (item.Score > current.Score)
                         {
