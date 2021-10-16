@@ -63,6 +63,18 @@ namespace Yolov5Net.Scorer
 
             var output = new Bitmap(_model.Width, _model.Height, format);
 
+            var (w, h) = (image.Width, image.Height); // image width and height
+
+            var (xRatio, yRatio) = (_model.Width / (float)w, _model.Height / (float)h); // x, y ratios
+
+            float ratio = Math.Min(xRatio, yRatio); // ratio = resized / original
+
+            var (width, height) = ((int)(image.Width * ratio), (int)(image.Height * ratio)); // roi width and height
+
+            var (x, y) = ((_model.Width / 2) - (width / 2), (_model.Height / 2) - (height / 2)); // roi x and y coordinates
+
+            var roi = new Rectangle(x, y, width, height); // region of interest
+
             using (var graphics = Graphics.FromImage(output))
             {
                 graphics.Clear(Color.FromArgb(0, 0, 0, 0)); // clear canvas
@@ -70,13 +82,6 @@ namespace Yolov5Net.Scorer
                 graphics.SmoothingMode = SmoothingMode.None; // no smoothing
                 graphics.InterpolationMode = InterpolationMode.Bilinear; // bilinear interpolation
                 graphics.PixelOffsetMode = PixelOffsetMode.Half; // half pixel offset
-
-                var (w, h) = (image.Width, image.Height); // image w and h
-                var (xRatio, yRatio) = (_model.Width / (float)w, _model.Height / (float)h); // x, y ratio
-                var ratio = Math.Min(xRatio, yRatio); // ratio = resized / original
-                var (width, height) = ((int)(image.Width * ratio), (int)(image.Height * ratio)); // roi w and h
-                var (x, y) = ((_model.Width / 2) - (width / 2), (_model.Height / 2) - (height / 2)); // roi x and y coords
-                var roi = new Rectangle(x, y, width, height); // region of interest
 
                 graphics.DrawImage(image, roi); // draw scaled
             }
@@ -92,7 +97,9 @@ namespace Yolov5Net.Scorer
             var bitmap = (Bitmap)image;
 
             var rectangle = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
+
             BitmapData bitmapData = bitmap.LockBits(rectangle, ImageLockMode.ReadOnly, bitmap.PixelFormat);
+
             int bytesPerPixel = Image.GetPixelFormatSize(bitmap.PixelFormat) / 8;
 
             var tensor = new DenseTensor<float>(new[] { 1, 3, _model.Height, _model.Width });
@@ -154,8 +161,10 @@ namespace Yolov5Net.Scorer
             var result = new ConcurrentBag<YoloPrediction>();
 
             var (w, h) = (image.Width, image.Height); // image w and h
-            var (xGain, yGain) = (_model.Width / (float)w, _model.Height / (float)h); // x, y gain
-            var gain = Math.Min(xGain, yGain); // gain = resized / original
+
+            var (xGain, yGain) = (_model.Width / (float)w, _model.Height / (float)h); // x, y gains
+
+            float gain = Math.Min(xGain, yGain); // gain = resized / original
 
             var (xPad, yPad) = ((_model.Width - w * gain) / 2, (_model.Height - h * gain) / 2); // left, right pads
 
@@ -172,10 +181,10 @@ namespace Yolov5Net.Scorer
                 {
                     if (output[0, i, k] <= _model.MulConfidence) return; // skip low mul_conf results
 
-                    var xMin = ((output[0, i, 0] - output[0, i, 2] / 2) - xPad) / gain; // unpad bbox tlx to original
-                    var yMin = ((output[0, i, 1] - output[0, i, 3] / 2) - yPad) / gain; // unpad bbox tly to original
-                    var xMax = ((output[0, i, 0] + output[0, i, 2] / 2) - xPad) / gain; // unpad bbox brx to original
-                    var yMax = ((output[0, i, 1] + output[0, i, 3] / 2) - yPad) / gain; // unpad bbox bry to original
+                    float xMin = ((output[0, i, 0] - output[0, i, 2] / 2) - xPad) / gain; // unpad bbox tlx to original
+                    float yMin = ((output[0, i, 1] - output[0, i, 3] / 2) - yPad) / gain; // unpad bbox tly to original
+                    float xMax = ((output[0, i, 0] + output[0, i, 2] / 2) - xPad) / gain; // unpad bbox brx to original
+                    float yMax = ((output[0, i, 1] + output[0, i, 3] / 2) - yPad) / gain; // unpad bbox bry to original
 
                     xMin = Clamp(xMin, 0, w); // clip bbox tlx to boundaries
                     yMin = Clamp(yMin, 0, h); // clip bbox tly to boundaries
@@ -204,8 +213,10 @@ namespace Yolov5Net.Scorer
             var result = new ConcurrentBag<YoloPrediction>();
 
             var (w, h) = (image.Width, image.Height); // image w and h
-            var (xGain, yGain) = (_model.Width / (float)w, _model.Height / (float)h); // x, y gain
-            var gain = Math.Min(xGain, yGain); // gain = resized / original
+
+            var (xGain, yGain) = (_model.Width / (float)w, _model.Height / (float)h); // x, y gains
+
+            float gain = Math.Min(xGain, yGain); // gain = resized / original
 
             var (xPad, yPad) = ((_model.Width - w * gain) / 2, (_model.Height - h * gain) / 2); // left, right pads
 
@@ -231,18 +242,18 @@ namespace Yolov5Net.Scorer
 
                             if (mulConfidence <= _model.MulConfidence) return; // skip low mul_conf results
 
-                            var rawX = (buffer[0] * 2 - 0.5f + x) * _model.Strides[i]; // predicted bbox x (center)
-                            var rawY = (buffer[1] * 2 - 0.5f + y) * _model.Strides[i]; // predicted bbox y (center)
+                            float rawX = (buffer[0] * 2 - 0.5f + x) * _model.Strides[i]; // predicted bbox x (center)
+                            float rawY = (buffer[1] * 2 - 0.5f + y) * _model.Strides[i]; // predicted bbox y (center)
 
-                            var rawW = (float)Math.Pow(buffer[2] * 2, 2) * _model.Anchors[i][a][0]; // predicted bbox w
-                            var rawH = (float)Math.Pow(buffer[3] * 2, 2) * _model.Anchors[i][a][1]; // predicted bbox h
+                            float rawW = (float)Math.Pow(buffer[2] * 2, 2) * _model.Anchors[i][a][0]; // predicted bbox w
+                            float rawH = (float)Math.Pow(buffer[3] * 2, 2) * _model.Anchors[i][a][1]; // predicted bbox h
 
                             float[] xyxy = Xywh2xyxy(new float[] { rawX, rawY, rawW, rawH });
 
-                            var xMin = Clamp((xyxy[0] - xPad) / gain, 0, w); // unpad, clip tlx
-                            var yMin = Clamp((xyxy[1] - yPad) / gain, 0, h); // unpad, clip tly
-                            var xMax = Clamp((xyxy[2] - xPad) / gain, 0, w); // unpad, clip brx
-                            var yMax = Clamp((xyxy[3] - yPad) / gain, 0, h); // unpad, clip bry
+                            float xMin = Clamp((xyxy[0] - xPad) / gain, 0, w); // unpad, clip tlx
+                            float yMin = Clamp((xyxy[1] - yPad) / gain, 0, h); // unpad, clip tly
+                            float xMax = Clamp((xyxy[2] - xPad) / gain, 0, w); // unpad, clip brx
+                            float yMax = Clamp((xyxy[3] - yPad) / gain, 0, h); // unpad, clip bry
 
                             YoloLabel label = _model.Labels[scores.IndexOf(mulConfidence)];
 
