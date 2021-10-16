@@ -1,12 +1,14 @@
 ﻿using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Yolov5Net.Scorer.Extensions;
 using Yolov5Net.Scorer.Models.Abstract;
 
@@ -63,21 +65,20 @@ namespace Yolov5Net.Scorer
 
             using (var graphics = Graphics.FromImage(output))
             {
-                graphics.Clear(Color.FromArgb(0, 0, 0, 0)); // clear with black
+                graphics.Clear(Color.FromArgb(0, 0, 0, 0)); // clear canvas
 
-                var (wRatio, hRatio) = (_model.Width / (float)image.Width, _model.Height / (float)image.Height);
+                graphics.SmoothingMode = SmoothingMode.None; // no smoothing
+                graphics.InterpolationMode = InterpolationMode.Bilinear; // bilinear interpolation
+                graphics.PixelOffsetMode = PixelOffsetMode.Half; // half pixel offset
 
-                var ratio = Math.Min(wRatio, hRatio); // min ratio = resized / original
+                var (w, h) = (image.Width, image.Height); // image w and h
+                var (xRatio, yRatio) = (_model.Width / (float)w, _model.Height / (float)h); // x, y ratio
+                var ratio = Math.Min(xRatio, yRatio); // ratio = resized / original
+                var (width, height) = ((int)(image.Width * ratio), (int)(image.Height * ratio)); // roi w and h
+                var (x, y) = ((_model.Width / 2) - (width / 2), (_model.Height / 2) - (height / 2)); // roi x and y coords
+                var roi = new Rectangle(x, y, width, height); // region of interest
 
-                var (width, height) = ((int)(image.Width * ratio), (int)(image.Height * ratio));
-
-                var (x, y) = ((_model.Width / 2) - (width / 2), (_model.Height / 2) - (height / 2));
-
-                graphics.SmoothingMode = SmoothingMode.None; // set no smoothing
-                graphics.InterpolationMode = InterpolationMode.Bilinear; // set bilinear interpolation
-                graphics.PixelOffsetMode = PixelOffsetMode.Half; // set half pixel offset
-
-                graphics.DrawImage(image, new Rectangle(x, y, width, height));
+                graphics.DrawImage(image, roi); // draw scaled
             }
 
             return output;
@@ -91,26 +92,24 @@ namespace Yolov5Net.Scorer
             var bitmap = (Bitmap)image;
 
             var rectangle = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
-
             BitmapData bitmapData = bitmap.LockBits(rectangle, ImageLockMode.ReadOnly, bitmap.PixelFormat);
-
             int bytesPerPixel = Image.GetPixelFormatSize(bitmap.PixelFormat) / 8;
 
             var tensor = new DenseTensor<float>(new[] { 1, 3, _model.Height, _model.Width });
 
             unsafe // speed up conversion by direct work with memory
             {
-                for (int y = 0; y < bitmapData.Height; y++)
+                Parallel.For(0, bitmapData.Height, (y) =>
                 {
                     byte* row = (byte*)bitmapData.Scan0 + (y * bitmapData.Stride);
 
-                    for (int x = 0; x < bitmapData.Width; x++)
+                    Parallel.For(0, bitmapData.Width, (x) =>
                     {
-                        tensor[0, 0, y, x] = row[x * bytesPerPixel + 2] / 255.0F;
-                        tensor[0, 1, y, x] = row[x * bytesPerPixel + 1] / 255.0F;
-                        tensor[0, 2, y, x] = row[x * bytesPerPixel + 0] / 255.0F;
-                    }
-                }
+                        tensor[0, 0, y, x] = row[x * bytesPerPixel + 2] / 255.0F; // r
+                        tensor[0, 1, y, x] = row[x * bytesPerPixel + 1] / 255.0F; // g
+                        tensor[0, 2, y, x] = row[x * bytesPerPixel + 0] / 255.0F; // b
+                    });
+                });
 
                 bitmap.UnlockBits(bitmapData);
             }
@@ -135,7 +134,7 @@ namespace Yolov5Net.Scorer
                 NamedOnnxValue.CreateFromTensor("images", ExtractPixels(resized ?? image))
             };
 
-            var result = _inferenceSession.Run(inputs); // run inference session
+            IDisposableReadOnlyCollection<DisposableNamedOnnxValue> result = _inferenceSession.Run(inputs); // run inference
 
             var output = new List<DenseTensor<float>>();
 
@@ -152,36 +151,36 @@ namespace Yolov5Net.Scorer
         /// </summary>
         private List<YoloPrediction> ParseDetect(DenseTensor<float> output, Image image)
         {
-            var result = new List<YoloPrediction>();
+            var result = new ConcurrentBag<YoloPrediction>();
 
-            var (xGain, yGain) = (_model.Width / (float)image.Width, _model.Height / (float)image.Height);
+            var (w, h) = (image.Width, image.Height); // image w and h
+            var (xGain, yGain) = (_model.Width / (float)w, _model.Height / (float)h); // x, y gain
+            var gain = Math.Min(xGain, yGain); // gain = resized / original
 
-            var gain = Math.Min(xGain, yGain); // min gain  = resized / original
+            var (xPad, yPad) = ((_model.Width - w * gain) / 2, (_model.Height - h * gain) / 2); // left, right pads
 
-            var (xPad, yPad) = ((_model.Width - image.Width * gain) / 2, (_model.Height - image.Height * gain) / 2);
-
-            for (int i = 0; i < output.Length / _model.Dimensions; i++) // iterate tensor
+            Parallel.For(0, (int)output.Length / _model.Dimensions, (i) =>
             {
-                if (output[0, i, 4] <= _model.Confidence) continue; // skip low obj_conf results
+                if (output[0, i, 4] <= _model.Confidence) return; // skip low obj_conf results
 
-                for (int j = 5; j < _model.Dimensions; j++)
+                Parallel.For(5, _model.Dimensions, (j) =>
                 {
-                    output[0, i, j] = output[0, i, j] * output[0, i, 4]; // compute mul_conf = obj_conf * cls_conf
-                }
+                    output[0, i, j] = output[0, i, j] * output[0, i, 4]; // mul_conf = obj_conf * cls_conf
+                });
 
-                for (int k = 5; k < _model.Dimensions; k++)
+                Parallel.For(5, _model.Dimensions, (k) =>
                 {
-                    if (output[0, i, k] <= _model.MulConfidence) continue; // skip low mul_conf results
+                    if (output[0, i, k] <= _model.MulConfidence) return; // skip low mul_conf results
 
                     var xMin = ((output[0, i, 0] - output[0, i, 2] / 2) - xPad) / gain; // unpad bbox tlx to original
                     var yMin = ((output[0, i, 1] - output[0, i, 3] / 2) - yPad) / gain; // unpad bbox tly to original
                     var xMax = ((output[0, i, 0] + output[0, i, 2] / 2) - xPad) / gain; // unpad bbox brx to original
                     var yMax = ((output[0, i, 1] + output[0, i, 3] / 2) - yPad) / gain; // unpad bbox bry to original
 
-                    xMin = Clamp(xMin, 0, image.Width);  // clip bbox tlx to boundaries
-                    yMin = Clamp(yMin, 0, image.Height); // clip bbox tly to boundaries
-                    xMax = Clamp(xMax, 0, image.Width);  // clip bbox brx to boundaries
-                    yMax = Clamp(yMax, 0, image.Height); // clip bbox bry to boundaries
+                    xMin = Clamp(xMin, 0, w); // clip bbox tlx to boundaries
+                    yMin = Clamp(yMin, 0, h); // clip bbox tly to boundaries
+                    xMax = Clamp(xMax, 0, w); // clip bbox brx to boundaries
+                    yMax = Clamp(yMax, 0, h); // clip bbox bry to boundaries
 
                     YoloLabel label = _model.Labels[k - 5];
 
@@ -191,10 +190,10 @@ namespace Yolov5Net.Scorer
                     };
 
                     result.Add(prediction);
-                }
-            }
+                });
+            });
 
-            return result;
+            return result.ToList();
         }
 
         /// <summary>
@@ -202,50 +201,48 @@ namespace Yolov5Net.Scorer
         /// </summary>
         private List<YoloPrediction> ParseSigmoid(DenseTensor<float>[] output, Image image)
         {
-            var result = new List<YoloPrediction>();
+            var result = new ConcurrentBag<YoloPrediction>();
 
-            var (xGain, yGain) = (_model.Width / (float)image.Width, _model.Height / (float)image.Height);
+            var (w, h) = (image.Width, image.Height); // image w and h
+            var (xGain, yGain) = (_model.Width / (float)w, _model.Height / (float)h); // x, y gain
+            var gain = Math.Min(xGain, yGain); // gain = resized / original
 
-            var gain = Math.Min(xGain, yGain); // min gain  = resized / original
+            var (xPad, yPad) = ((_model.Width - w * gain) / 2, (_model.Height - h * gain) / 2); // left, right pads
 
-            var (xPad, yPad) = ((_model.Width - image.Width * gain) / 2, (_model.Height - image.Height * gain) / 2);
-
-            for (int i = 0; i < output.Length; i++) // iterate outputs
+            Parallel.For(0, output.Length, (i) => // iterate model outputs
             {
                 int shapes = _model.Shapes[i]; // shapes per output
 
-                for (int a = 0; a < _model.Anchors.Length; a++) // iterate anchors
+                Parallel.For(0, _model.Anchors.Length, (a) => // iterate model configuration anchors
                 {
-                    for (int y = 0; y < shapes; y++) // iterate rows
+                    Parallel.For(0, shapes, (y) => // iterate shapes (rows)
                     {
-                        for (int x = 0; x < shapes; x++) // iterate columns
+                        Parallel.For(0, shapes, (x) => // iterate shapes (columns)
                         {
                             int offset = (shapes * shapes * a + shapes * y + x) * _model.Dimensions;
 
                             float[] buffer = output[i].Skip(offset).Take(_model.Dimensions).Select(Sigmoid).ToArray();
 
-                            var objConfidence = buffer[4]; // extract object confidence
+                            if (buffer[4] <= _model.Confidence) return; // skip low obj_conf results
 
-                            if (objConfidence <= _model.Confidence) continue; // skip low obj_conf results
+                            List<float> scores = buffer.Skip(5).Select(b => b * buffer[4]).ToList(); // mul_conf = obj_conf * cls_conf
 
-                            List<float> scores = buffer.Skip(5).Select(b => b * objConfidence).ToList();
+                            float mulConfidence = scores.Max(); // max confidence score
 
-                            float mulConfidence = scores.Max(); // find the best label
-
-                            if (mulConfidence <= _model.MulConfidence) continue; // skip low mul_conf results
+                            if (mulConfidence <= _model.MulConfidence) return; // skip low mul_conf results
 
                             var rawX = (buffer[0] * 2 - 0.5f + x) * _model.Strides[i]; // predicted bbox x (center)
                             var rawY = (buffer[1] * 2 - 0.5f + y) * _model.Strides[i]; // predicted bbox y (center)
 
-                            var rawW = (float)Math.Pow(buffer[2] * 2, 2) * _model.Anchors[i][a][0]; // predicted bbox width
-                            var rawH = (float)Math.Pow(buffer[3] * 2, 2) * _model.Anchors[i][a][1]; // predicted bbox height
+                            var rawW = (float)Math.Pow(buffer[2] * 2, 2) * _model.Anchors[i][a][0]; // predicted bbox w
+                            var rawH = (float)Math.Pow(buffer[3] * 2, 2) * _model.Anchors[i][a][1]; // predicted bbox h
 
                             float[] xyxy = Xywh2xyxy(new float[] { rawX, rawY, rawW, rawH });
 
-                            var xMin = Clamp((xyxy[0] - xPad) / gain, 0, image.Width);  // unpad, clip tlx
-                            var yMin = Clamp((xyxy[1] - yPad) / gain, 0, image.Height); // unpad, clip tly
-                            var xMax = Clamp((xyxy[2] - xPad) / gain, 0, image.Width);  // unpad, clip brx
-                            var yMax = Clamp((xyxy[3] - yPad) / gain, 0, image.Height); // unpad, clip bry
+                            var xMin = Clamp((xyxy[0] - xPad) / gain, 0, w); // unpad, clip tlx
+                            var yMin = Clamp((xyxy[1] - yPad) / gain, 0, h); // unpad, clip tly
+                            var xMax = Clamp((xyxy[2] - xPad) / gain, 0, w); // unpad, clip brx
+                            var yMax = Clamp((xyxy[3] - yPad) / gain, 0, h); // unpad, clip bry
 
                             YoloLabel label = _model.Labels[scores.IndexOf(mulConfidence)];
 
@@ -255,12 +252,12 @@ namespace Yolov5Net.Scorer
                             };
 
                             result.Add(prediction);
-                        }
-                    }
-                }
-            }
+                        });
+                    });
+                });
+            });
 
-            return result;
+            return result.ToList();
         }
 
         /// <summary>
@@ -278,9 +275,9 @@ namespace Yolov5Net.Scorer
         {
             var result = new List<YoloPrediction>(items);
 
-            foreach (var item in items)
+            foreach (var item in items) // iterate every prediction
             {
-                foreach (var current in result.ToList())
+                foreach (var current in result.ToList()) // make a copy for each iteration
                 {
                     if (current == item) continue;
 
@@ -288,13 +285,13 @@ namespace Yolov5Net.Scorer
 
                     RectangleF intersection = RectangleF.Intersect(rect1, rect2);
 
-                    float intArea = intersection.Area();
-                    float unionArea = rect1.Area() + rect2.Area() - intArea;
-                    float overlap = intArea / unionArea;
+                    float intArea = intersection.Area(); // intersection area
+                    float unionArea = rect1.Area() + rect2.Area() - intArea; // union area
+                    float overlap = intArea / unionArea; // overlap score
 
                     if (overlap >= _model.Overlap)
                     {
-                        if (item.Score > current.Score)
+                        if (item.Score >= current.Score)
                         {
                             result.Remove(current);
                         }
