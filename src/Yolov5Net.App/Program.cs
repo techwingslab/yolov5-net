@@ -12,7 +12,7 @@ namespace Yolov5Net.App
         {
             using var image = Image.FromFile("Assets/test.jpg");
 
-            using var scorer = new YoloScorer<YoloCocoP5Model>("Assets/Weights/yolov5s.onnx");
+            using var scorer = new YoloScorer<YoloCocoP5Model>("Assets/Weights/yolov5n.onnx");
 
             List<YoloPrediction> predictions = scorer.Predict(image);
 
