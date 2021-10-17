@@ -64,15 +64,10 @@ namespace Yolov5Net.Scorer
             var output = new Bitmap(_model.Width, _model.Height, format);
 
             var (w, h) = (image.Width, image.Height); // image width and height
-
             var (xRatio, yRatio) = (_model.Width / (float)w, _model.Height / (float)h); // x, y ratios
-
-            float ratio = Math.Min(xRatio, yRatio); // ratio = resized / original
-
-            var (width, height) = ((int)(image.Width * ratio), (int)(image.Height * ratio)); // roi width and height
-
+            var ratio = Math.Min(xRatio, yRatio); // ratio = resized / original
+            var (width, height) = ((int)(w * ratio), (int)(h * ratio)); // roi width and height
             var (x, y) = ((_model.Width / 2) - (width / 2), (_model.Height / 2) - (height / 2)); // roi x and y coordinates
-
             var roi = new Rectangle(x, y, width, height); // region of interest
 
             using (var graphics = Graphics.FromImage(output))
@@ -97,9 +92,7 @@ namespace Yolov5Net.Scorer
             var bitmap = (Bitmap)image;
 
             var rectangle = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
-
             BitmapData bitmapData = bitmap.LockBits(rectangle, ImageLockMode.ReadOnly, bitmap.PixelFormat);
-
             int bytesPerPixel = Image.GetPixelFormatSize(bitmap.PixelFormat) / 8;
 
             var tensor = new DenseTensor<float>(new[] { 1, 3, _model.Height, _model.Width });
@@ -161,10 +154,8 @@ namespace Yolov5Net.Scorer
             var result = new ConcurrentBag<YoloPrediction>();
 
             var (w, h) = (image.Width, image.Height); // image w and h
-
             var (xGain, yGain) = (_model.Width / (float)w, _model.Height / (float)h); // x, y gains
-
-            float gain = Math.Min(xGain, yGain); // gain = resized / original
+            var gain = Math.Min(xGain, yGain); // gain = resized / original
 
             var (xPad, yPad) = ((_model.Width - w * gain) / 2, (_model.Height - h * gain) / 2); // left, right pads
 
@@ -213,10 +204,8 @@ namespace Yolov5Net.Scorer
             var result = new ConcurrentBag<YoloPrediction>();
 
             var (w, h) = (image.Width, image.Height); // image w and h
-
             var (xGain, yGain) = (_model.Width / (float)w, _model.Height / (float)h); // x, y gains
-
-            float gain = Math.Min(xGain, yGain); // gain = resized / original
+            var gain = Math.Min(xGain, yGain); // gain = resized / original
 
             var (xPad, yPad) = ((_model.Width - w * gain) / 2, (_model.Height - h * gain) / 2); // left, right pads
 
@@ -298,7 +287,7 @@ namespace Yolov5Net.Scorer
 
                     float intArea = intersection.Area(); // intersection area
                     float unionArea = rect1.Area() + rect2.Area() - intArea; // union area
-                    float overlap = intArea / unionArea; // overlap score
+                    float overlap = intArea / unionArea; // overlap ratio
 
                     if (overlap >= _model.Overlap)
                     {
