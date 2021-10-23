@@ -11,13 +11,13 @@ namespace Yolov5Net.Scorer.Models
 
         public override int Dimensions { get; set; } = 85;
 
-        public override float[] Strides { get; set; } = new float[] { 8, 16, 32 };
+        public override int[] Strides { get; set; } = new int[] { 8, 16, 32 };
 
-        public override float[][][] Anchors { get; set; } = new float[][][]
+        public override int[][][] Anchors { get; set; } = new int[][][]
         {
-            new float[][] { new float[] { 010, 13 }, new float[] { 016, 030 }, new float[] { 033, 023 } },
-            new float[][] { new float[] { 030, 61 }, new float[] { 062, 045 }, new float[] { 059, 119 } },
-            new float[][] { new float[] { 116, 90 }, new float[] { 156, 198 }, new float[] { 373, 326 } }
+            new int[][] { new int[] { 010, 13 }, new int[] { 016, 030 }, new int[] { 033, 023 } },
+            new int[][] { new int[] { 030, 61 }, new int[] { 062, 045 }, new int[] { 059, 119 } },
+            new int[][] { new int[] { 116, 90 }, new int[] { 156, 198 }, new int[] { 373, 326 } }
         };
 
         public override int[] Shapes { get; set; } = new int[] { 80, 40, 20 };

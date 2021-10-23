@@ -177,10 +177,10 @@ namespace Yolov5Net.Scorer
                     float xMax = ((output[0, i, 0] + output[0, i, 2] / 2) - xPad) / gain; // unpad bbox brx to original
                     float yMax = ((output[0, i, 1] + output[0, i, 3] / 2) - yPad) / gain; // unpad bbox bry to original
 
-                    xMin = Clamp(xMin, 0, w); // clip bbox tlx to boundaries
-                    yMin = Clamp(yMin, 0, h); // clip bbox tly to boundaries
-                    xMax = Clamp(xMax, 0, w); // clip bbox brx to boundaries
-                    yMax = Clamp(yMax, 0, h); // clip bbox bry to boundaries
+                    xMin = Clamp(xMin, 0, w - 0); // clip bbox tlx to boundaries
+                    yMin = Clamp(yMin, 0, h - 0); // clip bbox tly to boundaries
+                    xMax = Clamp(xMax, 0, w - 1); // clip bbox brx to boundaries
+                    yMax = Clamp(yMax, 0, h - 1); // clip bbox bry to boundaries
 
                     YoloLabel label = _model.Labels[k - 5];
 
@@ -213,7 +213,7 @@ namespace Yolov5Net.Scorer
             {
                 int shapes = _model.Shapes[i]; // shapes per output
 
-                Parallel.For(0, _model.Anchors.Length, (a) => // iterate model configuration anchors
+                Parallel.For(0, _model.Anchors[0].Length, (a) => // iterate anchors
                 {
                     Parallel.For(0, shapes, (y) => // iterate shapes (rows)
                     {
@@ -239,10 +239,10 @@ namespace Yolov5Net.Scorer
 
                             float[] xyxy = Xywh2xyxy(new float[] { rawX, rawY, rawW, rawH });
 
-                            float xMin = Clamp((xyxy[0] - xPad) / gain, 0, w); // unpad, clip tlx
-                            float yMin = Clamp((xyxy[1] - yPad) / gain, 0, h); // unpad, clip tly
-                            float xMax = Clamp((xyxy[2] - xPad) / gain, 0, w); // unpad, clip brx
-                            float yMax = Clamp((xyxy[3] - yPad) / gain, 0, h); // unpad, clip bry
+                            float xMin = Clamp((xyxy[0] - xPad) / gain, 0, w - 0); // unpad, clip tlx
+                            float yMin = Clamp((xyxy[1] - yPad) / gain, 0, h - 0); // unpad, clip tly
+                            float xMax = Clamp((xyxy[2] - xPad) / gain, 0, w - 1); // unpad, clip brx
+                            float yMax = Clamp((xyxy[3] - yPad) / gain, 0, h - 1); // unpad, clip bry
 
                             YoloLabel label = _model.Labels[scores.IndexOf(mulConfidence)];
 

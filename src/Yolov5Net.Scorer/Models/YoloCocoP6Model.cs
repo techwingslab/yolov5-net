@@ -11,14 +11,14 @@ namespace Yolov5Net.Scorer.Models
 
         public override int Dimensions { get; set; } = 85;
 
-        public override float[] Strides { get; set; } = new float[] { 8, 16, 32, 64 };
+        public override int[] Strides { get; set; } = new int[] { 8, 16, 32, 64 };
 
-        public override float[][][] Anchors { get; set; } = new float[][][]
+        public override int[][][] Anchors { get; set; } = new int[][][]
         {
-            new float[][] { new float[] { 019, 027 }, new float[] { 044, 040 }, new float[] { 038, 094 } },
-            new float[][] { new float[] { 096, 068 }, new float[] { 086, 152 }, new float[] { 180, 137 } },
-            new float[][] { new float[] { 140, 301 }, new float[] { 303, 264 }, new float[] { 238, 542 } },
-            new float[][] { new float[] { 436, 615 }, new float[] { 739, 380 }, new float[] { 925, 792 } }
+            new int[][] { new int[] { 019, 027 }, new int[] { 044, 040 }, new int[] { 038, 094 } },
+            new int[][] { new int[] { 096, 068 }, new int[] { 086, 152 }, new int[] { 180, 137 } },
+            new int[][] { new int[] { 140, 301 }, new int[] { 303, 264 }, new int[] { 238, 542 } },
+            new int[][] { new int[] { 436, 615 }, new int[] { 739, 380 }, new int[] { 925, 792 } }
         };
 
         public override int[] Shapes { get; set; } = new int[] { 160, 80, 40, 20 };

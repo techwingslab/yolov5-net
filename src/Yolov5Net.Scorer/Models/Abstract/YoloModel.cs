@@ -13,8 +13,8 @@ namespace Yolov5Net.Scorer.Models.Abstract
 
         public abstract int Dimensions { get; set; }
 
-        public abstract float[] Strides { get; set; }
-        public abstract float[][][] Anchors { get; set; }
+        public abstract int[] Strides { get; set; }
+        public abstract int[][][] Anchors { get; set; }
         public abstract int[] Shapes { get; set; }
 
         public abstract float Confidence { get; set; }
