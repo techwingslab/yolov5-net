@@ -8,7 +8,7 @@ YOLOv5 object detection with ML.NET, ONNX
 Run this line from Package Manager Console:
 
 ```
-Install-Package Yolov5Net -Version 1.0.7
+Install-Package Yolov5Net -Version 1.0.9
 ```
 
 For CPU usage run this line from Package Manager Console:
