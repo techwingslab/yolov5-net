@@ -6,18 +6,11 @@ using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Yolov5Net.Scorer.Extensions;
 using Yolov5Net.Scorer.Models.Abstract;
-using Color = System.Drawing.Color;
-using Image = System.Drawing.Image;
-using Rectangle = System.Drawing.Rectangle;
-using RectangleF = System.Drawing.RectangleF;
 
 namespace Yolov5Net.Scorer
 {
@@ -54,69 +47,7 @@ namespace Yolov5Net.Scorer
         /// Returns value clamped to the inclusive range of min and max.
         /// </summary>
         public float Clamp(float value, float min, float max) => (value < min) ? min : (value > max) ? max : value;
-
-        /// <summary>
-        /// Resizes image keeping ratio to fit model input size.
-        /// </summary>
-        private Bitmap ResizeImage(Image image)
-        {
-            var format = image.PixelFormat;
-
-            var output = new Bitmap(_model.Width, _model.Height, format);
-
-            var (w, h) = (image.Width, image.Height); // image width and height
-            var (xRatio, yRatio) = (_model.Width / (float)w, _model.Height / (float)h); // x, y ratios
-            var ratio = Math.Min(xRatio, yRatio); // ratio = resized / original
-            var (width, height) = ((int)(w * ratio), (int)(h * ratio)); // roi width and height
-            var (x, y) = ((_model.Width / 2) - (width / 2), (_model.Height / 2) - (height / 2)); // roi x and y coordinates
-            var roi = new Rectangle(x, y, width, height); // region of interest
-
-            using (var graphics = Graphics.FromImage(output))
-            {
-                graphics.Clear(Color.FromArgb(0, 0, 0, 0)); // clear canvas
-
-                graphics.SmoothingMode = SmoothingMode.None; // no smoothing
-                graphics.InterpolationMode = InterpolationMode.Bilinear; // bilinear interpolation
-                graphics.PixelOffsetMode = PixelOffsetMode.Half; // half pixel offset
-
-                graphics.DrawImage(image, roi); // draw scaled
-            }
-
-            return output;
-        }
-
-        /// <summary>
-        /// Extracts pixels into tensor for net input.
-        /// </summary>
-        private Tensor<float> ExtractPixels(Image image)
-        {
-            var bitmap = (Bitmap)image;
-
-            var rectangle = new Rectangle(0, 0, bitmap.Width, bitmap.Height);
-            var bitmapData = bitmap.LockBits(rectangle, ImageLockMode.ReadOnly, bitmap.PixelFormat);
-            var bytesPerPixel = Image.GetPixelFormatSize(bitmap.PixelFormat) / 8;
-
-            var tensor = new DenseTensor<float>(new[] { 1, 3, _model.Height, _model.Width });
-
-            unsafe // speed up conversion by direct work with memory
-            {
-                _ = Parallel.For(0, bitmapData.Height, y =>
-                {
-                    var row = (byte*)bitmapData.Scan0 + (y * bitmapData.Stride);
-
-                    _ = Parallel.For(0, bitmapData.Width, x =>
-                    {
-                        tensor[0, 0, y, x] = row[(x * bytesPerPixel) + 2] / 255.0F; // r
-                        tensor[0, 1, y, x] = row[(x * bytesPerPixel) + 1] / 255.0F; // g
-                        tensor[0, 2, y, x] = row[(x * bytesPerPixel) + 0] / 255.0F; // b
-                    });
-                });
-
-                bitmap.UnlockBits(bitmapData);
-            }
-
-            return tensor;
-        }
+        
         /// <summary>
         /// Extracts pixels into tensor for net input.
         /// </summary>
@@ -133,35 +64,6 @@ namespace Yolov5Net.Scorer
                 }));
 
             return tensor;
-        }
-
-        /// <summary>
-        /// Runs inference session.
-        /// </summary>
-        private DenseTensor<float>[] Inference(Image image)
-        {
-            Bitmap resized = null;
-
-            if (image.Width != _model.Width || image.Height != _model.Height)
-            {
-                resized = ResizeImage(image); // fit image size to specified input size
-            }
-
-            var inputs = new List<NamedOnnxValue> // add image as onnx input
-            {
-                NamedOnnxValue.CreateFromTensor("images", ExtractPixels(resized ?? image))
-            };
-
-            var result = _inferenceSession.Run(inputs); // run inference
-
-            var output = new List<DenseTensor<float>>();
-
-            foreach (var item in _model.Outputs) // add outputs for processing
-            {
-                output.Add(result.First(x => x.Name == item).Value as DenseTensor<float>);
-            }
-
-            return output.ToArray();
         }
 
         /// <summary>
@@ -199,7 +101,7 @@ namespace Yolov5Net.Scorer
 
             var (xPad, yPad) = ((_model.Width - (info.Width * gain)) / 2, (_model.Height - (info.Height * gain)) / 2); // left, right pads
 
-            _ = Parallel.For(0, (int)output.Length / _model.Dimensions, (i) =>
+            _ = Parallel.For(0, (int)output.Length / _model.Dimensions, i =>
             {
                 if (output[0, i, 4] <= _model.Confidence)
                     return; // skip low obj_conf results
@@ -247,13 +149,13 @@ namespace Yolov5Net.Scorer
 
             var (xPad, yPad) = ((_model.Width - (info.Width * gain)) / 2, (_model.Height - (info.Height * gain)) / 2); // left, right pads
 
-            _ = Parallel.For(0, output.Length, (i) => // iterate model outputs
+            _ = Parallel.For(0, output.Length, i => // iterate model outputs
             {
                 var shapes = _model.Shapes[i]; // shapes per output
 
-                _ = Parallel.For(0, _model.Anchors[0].Length, (a) => // iterate anchors
-                    Parallel.For(0, shapes, (y) => // iterate shapes (rows)
-                        Parallel.For(0, shapes, (x) => // iterate shapes (columns)
+                _ = Parallel.For(0, _model.Anchors[0].Length, a => // iterate anchors
+                    Parallel.For(0, shapes, y => // iterate shapes (rows)
+                        Parallel.For(0, shapes, x => // iterate shapes (columns)
                         {
                             var offset = ((shapes * shapes * a) + (shapes * y) + x) * _model.Dimensions;
 
@@ -275,7 +177,7 @@ namespace Yolov5Net.Scorer
                             var rawW = (float)Math.Pow(buffer[2] * 2, 2) * _model.Anchors[i][a][0]; // predicted bbox w
                             var rawH = (float)Math.Pow(buffer[3] * 2, 2) * _model.Anchors[i][a][1]; // predicted bbox h
 
-                            var xyxy = Xywh2xyxy(new float[] { rawX, rawY, rawW, rawH });
+                            var xyxy = Xywh2xyxy(new[] { rawX, rawY, rawW, rawH });
 
                             var xMin = Clamp((xyxy[0] - xPad) / gain, 0, info.Width - 0); // unpad, clip tlx
                             var yMin = Clamp((xyxy[1] - yPad) / gain, 0, info.Height - 0); // unpad, clip tly
@@ -299,7 +201,7 @@ namespace Yolov5Net.Scorer
         /// <summary>
         /// Parses net outputs (sigmoid or detect layer) to predictions.
         /// </summary>
-        private List<YoloPrediction> ParseOutput(DenseTensor<float>[] output, (int Width, int Height) info) => _model.UseDetect ? ParseDetect(output[0], info): ParseSigmoid(output, info);
+        private List<YoloPrediction> ParseOutput(DenseTensor<float>[] output, (int Width, int Height) info) => _model.UseDetect ? ParseDetect(output[0], info) : ParseSigmoid(output, info);
 
         /// <summary>
         /// Removes overlapped duplicates (nms).
@@ -333,10 +235,6 @@ namespace Yolov5Net.Scorer
             return result;
         }
 
-        /// <summary>
-        /// Runs object detection.
-        /// </summary>
-        public List<YoloPrediction> Predict(Image image) => Suppress(ParseOutput(Inference(image), (image.Width, image.Height)));
         /// <summary>
         /// Runs object detection.
         /// </summary>
