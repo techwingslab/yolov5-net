@@ -27,7 +27,7 @@ namespace Yolov5Net.App
 
                 var (x, y) = (prediction.Rectangle.Left - 3, prediction.Rectangle.Top - 23);
 
-                image.Mutate(a => a.DrawPolygon(new Pen(prediction.Label.Color, (float)score),
+                image.Mutate(a => a.DrawPolygon(new Pen(prediction.Label.Color, 1),
                     new PointF(prediction.Rectangle.Left, prediction.Rectangle.Top),
                     new PointF(prediction.Rectangle.Right, prediction.Rectangle.Top),
                     new PointF(prediction.Rectangle.Right, prediction.Rectangle.Bottom),
