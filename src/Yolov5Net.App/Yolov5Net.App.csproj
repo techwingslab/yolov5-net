@@ -6,7 +6,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.9.0" />
+        <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.11.0" />
+        <PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta17" />
+        <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta14" />
     </ItemGroup>
 
     <ItemGroup>

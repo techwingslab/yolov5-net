@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿
+using SixLabors.ImageSharp;
 
 namespace Yolov5Net.Scorer
 {
@@ -12,9 +13,6 @@ namespace Yolov5Net.Scorer
         public YoloLabelKind Kind { get; set; }
         public Color Color { get; set; }
 
-        public YoloLabel()
-        {
-            Color = Color.Yellow;
-        }
+        public YoloLabel() => Color = Color.Yellow;
     }
 }
