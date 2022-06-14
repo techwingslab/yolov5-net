@@ -47,7 +47,7 @@ namespace Yolov5Net.Scorer
         /// Returns value clamped to the inclusive range of min and max.
         /// </summary>
         public float Clamp(float value, float min, float max) => (value < min) ? min : (value > max) ? max : value;
-        
+
         /// <summary>
         /// Extracts pixels into tensor for net input.
         /// </summary>
