@@ -35,7 +35,7 @@ namespace Yolov5Net.App
                 ).DrawText($"{prediction.Label.Name} ({score})",
                     font,
                     prediction.Label.Color,
-                    new PointF(x, y)));
+                    new(x, y)));
             }
 
             await image.SaveAsync("Assets/result.jpg");
