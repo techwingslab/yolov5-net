@@ -20,8 +20,10 @@ foreach (var prediction in predictions) // iterate predictions to draw results
 
     var (x, y) = (prediction.Rectangle.Left - 3, prediction.Rectangle.Top - 23);
 
+    //var (w, h) = (image.Width, image.Height);
+    var (w, h) = (640, 640);
     image.Mutate(a => a.DrawPolygon(new Pen(prediction.Label.Color, 1),
-        new PointF(prediction.Rectangle.Left, prediction.Rectangle.Top),
+        new PointF(prediction.Rectangle.Left / 640 * w, prediction.Rectangle.Top / 640 * h),
         new PointF(prediction.Rectangle.Right, prediction.Rectangle.Top),
         new PointF(prediction.Rectangle.Right, prediction.Rectangle.Bottom),
         new PointF(prediction.Rectangle.Left, prediction.Rectangle.Bottom)
