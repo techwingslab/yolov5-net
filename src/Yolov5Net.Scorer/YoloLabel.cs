@@ -1,18 +1,13 @@
-﻿
-using SixLabors.ImageSharp;
+﻿using SixLabors.ImageSharp;
 
-namespace Yolov5Net.Scorer
+namespace Yolov5Net.Scorer;
+
+/// <summary>
+/// Label of detected object.
+/// </summary>
+public record YoloLabel(int Id, string Name, Color Color, YoloLabelKind Kind)
 {
-    /// <summary>
-    /// Label of detected object.
-    /// </summary>
-    public class YoloLabel
+    public YoloLabel(int id, string name) : this(id, name, Color.Yellow, YoloLabelKind.Generic)
     {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public YoloLabelKind Kind { get; set; }
-        public Color Color { get; set; }
-
-        public YoloLabel() => Color = Color.Yellow;
     }
 }

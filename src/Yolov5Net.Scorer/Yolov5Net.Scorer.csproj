@@ -4,7 +4,7 @@
         <Product>Yolov5Net</Product>
         <AssemblyVersion>1.0.9.0</AssemblyVersion>
         <FileVersion>1.0.9.0</FileVersion>
-        <TargetFramework>netstandard2.0</TargetFramework>
+        <TargetFramework>netstandard2.1</TargetFramework>
         <PackageId>Yolov5Net</PackageId>
         <Description>YOLOv5 object detection with C#, ML.NET, ONNX.</Description>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -15,6 +15,7 @@
         <Copyright>© Mentalstack 2016-2021</Copyright>
         <Authors>Mentalstack</Authors>
         <Version>1.0.9</Version>
+        <LangVersion>Preview</LangVersion>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -27,14 +28,18 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Compile Remove="Abstract\**" />
-      <EmbeddedResource Remove="Abstract\**" />
-      <None Remove="Abstract\**" />
+        <Compile Remove="Abstract\**" />
+        <EmbeddedResource Remove="Abstract\**" />
+        <None Remove="Abstract\**" />
     </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.11.0" />
         <PackageReference Include="SixLabors.ImageSharp" Version="2.1.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Services\" />
     </ItemGroup>
 
 </Project>
