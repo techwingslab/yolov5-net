@@ -6,8 +6,11 @@ public record YoloCocoP6Model() : YoloModel(
     1280,
     1280,
     3,
+
     85,
+
     new[] { 8, 16, 32, 64 },
+
     new[]
     {
         new[] { new[] { 019, 027 }, new[] { 044, 040 }, new[] { 038, 094 } },
@@ -15,11 +18,15 @@ public record YoloCocoP6Model() : YoloModel(
         new[] { new[] { 140, 301 }, new[] { 303, 264 }, new[] { 238, 542 } },
         new[] { new[] { 436, 615 }, new[] { 739, 380 }, new[] { 925, 792 } }
     },
+
     new[] { 160, 80, 40, 20 },
+
     0.20f,
     0.25f,
     0.45f,
+
     new[] { "output" },
+
     new()
     {
         new(1, "person"),
@@ -103,5 +110,6 @@ public record YoloCocoP6Model() : YoloModel(
         new(79, "hair drier"),
         new(80, "toothbrush")
     },
+
     true
 );

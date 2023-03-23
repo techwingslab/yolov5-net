@@ -2,5 +2,5 @@
 
 internal static class IsExternalInit
 {
-    
+    // do not remove
 }
