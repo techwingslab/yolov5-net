@@ -13,7 +13,7 @@ using var image = await Image.LoadAsync<Rgba32>("Assets/test.jpg");
     {
         var predictions = scorer.Predict(image);
 
-        var font = new Font(new FontCollection().Add("C:/Windows/Fonts/consola.ttf"), 16);
+        var font = new Font(new FontCollection().Add("Assets/consolas.ttf"), 16);
 
         foreach (var prediction in predictions) // draw predictions
         {
